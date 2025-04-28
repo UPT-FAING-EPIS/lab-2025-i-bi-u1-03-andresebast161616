@@ -26,9 +26,9 @@ jobs:
       working-directory: infra
 
     - name: Restore Database (using PowerShell)
-      run: |
-        pwsh ./scripts/restore_database.ps1
+      shell: pwsh
+      run: ./scripts/restore_database.ps1
       env:
-        SQL_SERVER_NAME: ${{ secrets.SQL_SERVER_NAME }}
-        ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
-        ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        AZURE_SQL_SERVER: ${{ secrets.SQL_SERVER_NAME }}
+        AZURE_SQL_ADMIN: ${{ secrets.ADMIN_USERNAME }}
+        AZURE_SQL_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
