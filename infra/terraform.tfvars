@@ -1,0 +1,6 @@
+resource_group_name = "azurelab3-rg"
+location            = "West US 2"
+sql_server_name     = "azurelab3sqlserver"
+admin_username      = "sqladminuser"
+admin_password      = "@andre_servidor25"
+database_name       = "azurelab3database"

@@ -32,3 +32,4 @@ jobs:
         AZURE_SQL_SERVER: ${{ secrets.SQL_SERVER_NAME }}
         AZURE_SQL_ADMIN: ${{ secrets.ADMIN_USERNAME }}
         AZURE_SQL_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+

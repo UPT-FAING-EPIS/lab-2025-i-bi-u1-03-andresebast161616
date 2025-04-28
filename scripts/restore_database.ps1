@@ -1,24 +1,24 @@
-$server = $env:AZURE_SQL_SERVER
-$username = $env:AZURE_SQL_ADMIN
-$password = $env:AZURE_SQL_PASSWORD
-$database = "azurelab3powerbi-db"
+$connectionString = "Server=$env:AZURE_SQL_SERVER;Database=YourDatabase;User Id=$env:AZURE_SQL_ADMIN;Password=$env:AZURE_SQL_PASSWORD;"
 
-$sqlCommand = @"
-CREATE TABLE TestTable (
-    Id INT PRIMARY KEY,
-    Name NVARCHAR(50)
+
+$sqlScript = @"
+IF OBJECT_ID('dbo.Orders', 'U') IS NOT NULL
+    DROP TABLE dbo.Orders;
+GO
+
+-- Ahora puedes proceder a restaurar la base de datos o insertar los datos deseados
+-- Por ejemplo, crear la tabla y restaurar o insertar datos:
+
+CREATE TABLE dbo.Orders (
+    OrderID INT PRIMARY KEY,
+    OrderDate DATETIME,
+    CustomerID INT
+    -- otras columnas
 );
+
+-- Inserción de datos (si es necesario)
+-- INSERT INTO dbo.Orders (OrderID, OrderDate, CustomerID) VALUES (1, '2024-01-01', 101);
+GO
 "@
 
-# Instalamos el módulo SqlServer si no está instalado
-if (-not (Get-Module -ListAvailable -Name SqlServer)) {
-    Install-Module -Name SqlServer -Force -Scope CurrentUser
-}
-
-Invoke-Sqlcmd -ServerInstance $server `
-    -Database $database `
-    -Username $username `
-    -Password $password `
-    -Query $sqlCommand `
-    -Encrypt Connection `
-    -TrustServerCertificate
+Invoke-Sqlcmd -ConnectionString $connectionString -Query $sqlScript
