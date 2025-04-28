@@ -9,49 +9,37 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    permissions:
-      id-token: write  # Necesario para la autenticación
-
     steps:
-      # Paso 1: Checkout del repositorio
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Paso 2: Configuración de Terraform
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: '1.3.0'
+          terraform_version: '1.3.0'  
 
-      # Paso 3: Autenticación con Azure CLI usando el Service Principal
-      - name: Log in to Azure CLI
-        run: |
-          az login --service-principal -u ${{ secrets.ARM_CLIENT_ID }} -p ${{ secrets.ARM_CLIENT_SECRET }} --tenant ${{ secrets.ARM_TENANT_ID }}
+      - name: Set up Azure credentials
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          client-secret: ${{ secrets.ARM_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
 
-      # Paso 4: Establecer la suscripción de Azure
-      - name: Set Azure subscription
-        run: |
-          az account set --subscription ${{ secrets.ARM_SUBSCRIPTION_ID }}
-
-      # Paso 5: Inicialización de Terraform
       - name: Terraform Init
         run: terraform init
 
-      # Paso 6: Verificar el plan de Terraform
       - name: Terraform Plan
         run: terraform plan
 
-      # Paso 7: Aplicar el plan de Terraform
       - name: Terraform Apply
         run: terraform apply -auto-approve
 
-      # Paso 8: Restauración de la base de datos (Liquibase o PowerShell)
-      - name: Restaurar Base de Datos
+      - name: Restaurar Base de Datos (PowerShell)
         run: |
-          sudo apt-get install -y pwsh  # Instalar PowerShell en Ubuntu
-          pwsh -Command "Invoke-Expression -Command 'liquibase --url=jdbc:sqlserver://${{ secrets.SQL_SERVER_NAME }};databaseName=${{ secrets.DATABASE_NAME }} --username=${{ secrets.ADMIN_USERNAME }} --password=${{ secrets.ADMIN_PASSWORD }} update'"
-
-      # Paso 9: Verificar la conexión a la base de datos
+          sudo apt-get install -y pwsh  # Instalar PowerShell si no está instalado
+          pwsh -Command "Invoke-Expression -Command 'sqlcmd -S <server_name> -U ${{ secrets.ADMIN_USERNAME }} -P ${{ secrets.ADMIN_PASSWORD }} -d <database_name> -i <restore_script.sql>'"
+        
       - name: Verificar la conexión a la base de datos
         run: |
-          sqlcmd -S ${{ secrets.SQL_SERVER_NAME }} -U ${{ secrets.ADMIN_USERNAME }} -P ${{ secrets.ADMIN_PASSWORD }} -d ${{ secrets.DATABASE_NAME }} -Q "SELECT 1"
+          sqlcmd -S <server_name> -U ${{ secrets.ADMIN_USERNAME }} -P ${{ secrets.ADMIN_PASSWORD }} -d <database_name> -Q "SELECT 1"
