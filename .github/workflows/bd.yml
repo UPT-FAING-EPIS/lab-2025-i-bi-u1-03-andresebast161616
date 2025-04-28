@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up Azure Login
+    - name: Login to Azure
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
@@ -26,25 +26,14 @@ jobs:
       run: terraform init
       working-directory: infra
 
-    - name: Import existing resource group (if needed)
-      run: |
-        RESOURCE_GROUP_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/azurelab3powerbi-rg"
-        terraform import azurerm_resource_group.rg $RESOURCE_GROUP_ID || echo "Resource group already managed by Terraform"
-      working-directory: infra
-
-    - name: Import existing SQL Server (if needed)
-      run: |
-        RESOURCE_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/azurelab3powerbi-rg/providers/Microsoft.Sql/servers/azurelab3powerbi-server"
-        terraform import azurerm_mssql_server.sql_server $RESOURCE_ID || echo "SQL Server already managed by Terraform"
-      working-directory: infra
-
     - name: Terraform Apply
       run: terraform apply -auto-approve -var-file="terraform.tfvars"
       working-directory: infra
 
-    - name: Restore Database (using PowerShell)
+    - name: Restore Database
       shell: pwsh
-      run: ./scripts/restore_database.ps1
+      run: |
+        ./scripts/restore_database.ps1
       env:
         AZURE_SQL_SERVER: ${{ secrets.SQL_SERVER_NAME }}
         AZURE_SQL_ADMIN: ${{ secrets.ADMIN_USERNAME }}
