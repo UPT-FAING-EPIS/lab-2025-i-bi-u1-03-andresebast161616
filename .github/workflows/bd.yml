@@ -26,9 +26,14 @@ jobs:
       run: terraform init
       working-directory: infra
 
-    - name: Import existing resources if needed
+    - name: Import existing resource group (if needed)
       run: |
-        # Intenta importar el recurso de SQL Server si no está en el estado de Terraform
+        RESOURCE_GROUP_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/azurelab3powerbi-rg"
+        terraform import azurerm_resource_group.rg $RESOURCE_GROUP_ID || echo "Resource group already managed by Terraform"
+      working-directory: infra
+
+    - name: Import existing SQL Server (if needed)
+      run: |
         RESOURCE_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/azurelab3powerbi-rg/providers/Microsoft.Sql/servers/azurelab3powerbi-server"
         terraform import azurerm_mssql_server.sql_server $RESOURCE_ID || echo "SQL Server already managed by Terraform"
       working-directory: infra
