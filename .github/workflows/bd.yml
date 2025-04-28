@@ -10,14 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Paso 1: Checkout del repositorio
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      # Paso 2: Configuración de Terraform
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: '1.3.0'  
+          terraform_version: '1.3.0'  # Puedes usar la versión que necesites
 
+      # Paso 3: Configuración de las credenciales de Azure
       - name: Set up Azure credentials
         uses: azure/login@v1
         with:
@@ -26,21 +29,26 @@ jobs:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
 
+      # Paso 4: Inicializar Terraform
       - name: Terraform Init
         run: terraform init
 
+      # Paso 5: Verificar el plan de Terraform
       - name: Terraform Plan
         run: terraform plan
 
+      # Paso 6: Aplicar el plan de Terraform
       - name: Terraform Apply
         run: terraform apply -auto-approve
 
-      - name: Restaurar Base de Datos (PowerShell)
+      # Paso 7: Restaurar la base de datos utilizando Liquibase o PowerShell (según se necesite)
+      - name: Restaurar Base de Datos (PowerShell o Liquibase)
         run: |
-          sudo apt-get install -y pwsh  # Instalar PowerShell si no está instalado
-          pwsh -Command "Invoke-Expression -Command 'sqlcmd -S <server_name> -U ${{ secrets.ADMIN_USERNAME }} -P ${{ secrets.ADMIN_PASSWORD }} -d <database_name> -i <restore_script.sql>'"
+          sudo apt-get install -y pwsh  # Instalar PowerShell en Ubuntu
+          # Usar Liquibase para restaurar la base de datos
+          pwsh -Command "Invoke-Expression -Command 'liquibase --url=jdbc:sqlserver://${{ secrets.SQL_SERVER_NAME }};databaseName=${{ secrets.DATABASE_NAME }} --username=${{ secrets.ADMIN_USERNAME }} --password=${{ secrets.ADMIN_PASSWORD }} update'"
         
-      
+      # Paso 8: Verificar la conexión a la base de datos
       - name: Verificar la conexión a la base de datos
         run: |
-          sqlcmd -S <server_name> -U ${{ secrets.ADMIN_USERNAME }} -P ${{ secrets.ADMIN_PASSWORD }} -d <database_name> -Q "SELECT 1"
+          sqlcmd -S ${{ secrets.SQL_SERVER_NAME }} -U ${{ secrets.ADMIN_USERNAME }} -P ${{ secrets.ADMIN_PASSWORD }} -d ${{ secrets.DATABASE_NAME }} -Q "SELECT 1"
