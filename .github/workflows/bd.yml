@@ -26,6 +26,16 @@ jobs:
       run: terraform init
       working-directory: infra
 
+    - name: Check if Resource Group exists and import it
+      run: |
+        RESOURCE_GROUP_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/azurelab3powerbi-rg"
+        if terraform state list azurerm_resource_group.rg > /dev/null; then
+          echo "Resource group already managed by Terraform."
+        else
+          terraform import azurerm_resource_group.rg $RESOURCE_GROUP_ID
+        fi
+      working-directory: infra
+
     - name: Terraform Apply
       run: terraform apply -auto-approve -var-file="terraform.tfvars"
       working-directory: infra
