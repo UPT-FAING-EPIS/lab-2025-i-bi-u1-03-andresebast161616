@@ -9,6 +9,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write  # Se requiere este permiso para habilitar el inicio de sesión con Azure CLI
+
     steps:
       # Paso 1: Checkout del repositorio
       - name: Checkout repository
@@ -18,18 +21,15 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: '1.3.0'  # Puedes usar la versión que necesites
+          terraform_version: '1.3.0'
 
-      # Paso 3: Configuración de las credenciales de Azure
+      # Paso 3: Configuración de las credenciales de Azure usando secrets y 'creds'
       - name: Set up Azure credentials
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.ARM_CLIENT_ID }}
-          client-secret: ${{ secrets.ARM_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.ARM_TENANT_ID }}
-          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}  # Usamos el JSON con las credenciales como secret
 
-      # Paso 4: Inicializar Terraform
+      # Paso 4: Inicialización de Terraform
       - name: Terraform Init
         run: terraform init
 
@@ -41,13 +41,12 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve
 
-      # Paso 7: Restaurar la base de datos utilizando Liquibase o PowerShell (según se necesite)
+      # Paso 7: Restauración de la base de datos
       - name: Restaurar Base de Datos (PowerShell o Liquibase)
         run: |
           sudo apt-get install -y pwsh  # Instalar PowerShell en Ubuntu
-          # Usar Liquibase para restaurar la base de datos
           pwsh -Command "Invoke-Expression -Command 'liquibase --url=jdbc:sqlserver://${{ secrets.SQL_SERVER_NAME }};databaseName=${{ secrets.DATABASE_NAME }} --username=${{ secrets.ADMIN_USERNAME }} --password=${{ secrets.ADMIN_PASSWORD }} update'"
-        
+
       # Paso 8: Verificar la conexión a la base de datos
       - name: Verificar la conexión a la base de datos
         run: |
