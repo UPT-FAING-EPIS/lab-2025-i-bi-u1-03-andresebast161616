@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      id-token: write  # Se requiere este permiso para habilitar el inicio de sesión con Azure CLI
+      id-token: write  # Necesario para la autenticación
 
     steps:
       # Paso 1: Checkout del repositorio
@@ -23,31 +23,35 @@ jobs:
         with:
           terraform_version: '1.3.0'
 
-      # Paso 3: Configuración de las credenciales de Azure usando secrets y 'creds'
-      - name: Set up Azure credentials
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}  # Usamos el JSON con las credenciales como secret
+      # Paso 3: Autenticación con Azure CLI usando el Service Principal
+      - name: Log in to Azure CLI
+        run: |
+          az login --service-principal -u ${{ secrets.ARM_CLIENT_ID }} -p ${{ secrets.ARM_CLIENT_SECRET }} --tenant ${{ secrets.ARM_TENANT_ID }}
 
-      # Paso 4: Inicialización de Terraform
+      # Paso 4: Establecer la suscripción de Azure
+      - name: Set Azure subscription
+        run: |
+          az account set --subscription ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+      # Paso 5: Inicialización de Terraform
       - name: Terraform Init
         run: terraform init
 
-      # Paso 5: Verificar el plan de Terraform
+      # Paso 6: Verificar el plan de Terraform
       - name: Terraform Plan
         run: terraform plan
 
-      # Paso 6: Aplicar el plan de Terraform
+      # Paso 7: Aplicar el plan de Terraform
       - name: Terraform Apply
         run: terraform apply -auto-approve
 
-      # Paso 7: Restauración de la base de datos
-      - name: Restaurar Base de Datos (PowerShell o Liquibase)
+      # Paso 8: Restauración de la base de datos (Liquibase o PowerShell)
+      - name: Restaurar Base de Datos
         run: |
           sudo apt-get install -y pwsh  # Instalar PowerShell en Ubuntu
           pwsh -Command "Invoke-Expression -Command 'liquibase --url=jdbc:sqlserver://${{ secrets.SQL_SERVER_NAME }};databaseName=${{ secrets.DATABASE_NAME }} --username=${{ secrets.ADMIN_USERNAME }} --password=${{ secrets.ADMIN_PASSWORD }} update'"
 
-      # Paso 8: Verificar la conexión a la base de datos
+      # Paso 9: Verificar la conexión a la base de datos
       - name: Verificar la conexión a la base de datos
         run: |
           sqlcmd -S ${{ secrets.SQL_SERVER_NAME }} -U ${{ secrets.ADMIN_USERNAME }} -P ${{ secrets.ADMIN_PASSWORD }} -d ${{ secrets.DATABASE_NAME }} -Q "SELECT 1"
