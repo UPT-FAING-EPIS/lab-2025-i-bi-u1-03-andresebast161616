@@ -1,40 +1,66 @@
-name: Deploy Azure SQL Infrastructure
+name: Infraestructura + Restaurar Base de Datos Azure
 
 on:
   push:
-    paths:
-      - 'infra/**'
-      - '.github/workflows/bd.yml'
+    branches: [main]
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  deploy-lab3-infra-and-restore:
+    runs-on: windows-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - name: Checkout del repositorio
+      uses: actions/checkout@v3
 
-    - name: Login to Azure
+    - name: Login a Azure
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.6
+
+    - name: Crear archivo terraform.tfvars
+      run: |
+        echo "subscription_id = \"${{ secrets.SUBSCRIPTION_ID }}\"" > ./infra/terraform.tfvars
+        echo "sqladmin_username = \"${{ secrets.SQL_USERNAME }}\"" >> ./infra/terraform.tfvars
+        echo "sqladmin_password = \"${{ secrets.SQL_PASSWORD }}\"" >> ./infra/terraform.tfvars
+        echo "resource_group_name = \"azurelab3powerbi-rg\"" >> ./infra/terraform.tfvars
+        echo "location = \"westus2\"" >> ./infra/terraform.tfvars
+      shell: pwsh
 
     - name: Terraform Init
+      working-directory: ./infra
       run: terraform init
-      working-directory: infra
+
+    - name: Terraform Plan
+      working-directory: ./infra
+      run: terraform plan -var-file="terraform.tfvars" -out="main.tfplan"
 
     - name: Terraform Apply
-      run: terraform apply -auto-approve -var-file="terraform.tfvars"
-      working-directory: infra
+      working-directory: ./infra
+      run: terraform apply -auto-approve "main.tfplan"
 
-    - name: Restore Database
+    - name: Instalar módulo SqlServer para PowerShell
+      run: |
+        Install-Module -Name SqlServer -Force -SkipPublisherCheck -AllowClobber
+      shell: pwsh
+
+    - name: Ejecutar script SQL para restauración
       shell: pwsh
       run: |
-        ./scripts/restore_database.ps1
-      env:
-        AZURE_SQL_SERVER: ${{ secrets.SQL_SERVER_NAME }}
-        AZURE_SQL_ADMIN: ${{ secrets.ADMIN_USERNAME }}
-        AZURE_SQL_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        $serverName = "${{ secrets.SQL_SERVER }}"
+        $databaseName = "azurelab3powerbi-db"
+        $username = "${{ secrets.SQL_USERNAME }}"
+        $password = "${{ secrets.SQL_PASSWORD }}"
+        $scriptPath = "bd.sql"
+        if (Test-Path $scriptPath) {
+          $sqlScript = Get-Content -Path $scriptPath -Raw
+          $connectionString = "Server=$serverName.database.windows.net;Database=$databaseName;User Id=$username;Password=$password;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+          Invoke-Sqlcmd -ConnectionString $connectionString -Query $sqlScript
+        } else {
+          Write-Error "No se encontró el archivo $scriptPath"
+          exit 1
+        }
