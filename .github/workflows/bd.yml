@@ -19,11 +19,11 @@ jobs:
 
     - name: Terraform Init
       run: terraform init
-      working-directory: infra
+      working-directory: infra/terraform
 
     - name: Terraform Apply
       run: terraform apply -auto-approve -var-file="terraform.tfvars"
-      working-directory: infra
+      working-directory: infra/terraform
 
     - name: Restore Database (using PowerShell)
       shell: pwsh
