@@ -3,50 +3,69 @@ name: Despliegue de Infraestructura y Restauración de Base de Datos
 on:
   push:
     branches:
-      - main  
-
-permissions:
-  id-token: write 
+      - main  # Se ejecutará al hacer push a la rama principal
 
 jobs:
-  deploy:
+  terraform-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # Paso 1: Hacer checkout del código
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      # Paso 2: Configurar Terraform
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: '1.3.0'
 
+      # Paso 3: Configurar las credenciales de Azure
       - name: Set up Azure credentials using Azure CLI login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
-          environment: azurecloud
-          allow-no-subscriptions: false
-          audience: api://AzureADTokenExchange
-          auth-type: SERVICE_PRINCIPAL
+          auth-type: 'SERVICE_PRINCIPAL'
 
+      # Paso 4: Inicializar Terraform
       - name: Terraform Init
         run: terraform init
 
+      # Paso 5: Ejecutar Terraform Plan
       - name: Terraform Plan
         run: terraform plan
 
+      # Paso 6: Aplicar los cambios de Terraform
       - name: Terraform Apply
         run: terraform apply -auto-approve
 
-      - name: Restaurar Base de Datos (PowerShell)
-        run: |
-          sudo apt-get install -y pwsh  # Instalar PowerShell si no está instalado
-          pwsh -Command "Invoke-Expression -Command 'sqlcmd -S <server_name> -U ${{ secrets.ADMIN_USERNAME }} -P ${{ secrets.ADMIN_PASSWORD }} -d <database_name> -i <restore_script.sql>'"
+  database-restoration:
+    runs-on: ubuntu-latest
+    needs: terraform-deploy  # Este job se ejecutará después de que el job de Terraform termine
 
-      - name: Verificar la conexión a la base de datos
+    steps:
+      # Paso 1: Hacer checkout del código
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Paso 2: Instalar PowerShell
+      - name: Install PowerShell
         run: |
-          sqlcmd -S <server_name> -U ${{ secrets.ADMIN_USERNAME }} -P ${{ secrets.ADMIN_PASSWORD }} -d <database_name> -Q "SELECT 1"
+          sudo apt-get update
+          sudo apt-get install -y wget apt-transport-https software-properties-common
+          wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb"
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo apt-get install -y powershell
+
+      # Paso 3: Ejecutar el script de restauración de la base de datos
+      - name: Run database restoration script
+        run: |
+          pwsh -Command "./scripts/restore-db.ps1"
+
+      # Paso 4: Verificar el estado de la base de datos restaurada
+      - name: Verify database restoration
+        run: |
+          pwsh -Command "./scripts/verify-db.ps1"
